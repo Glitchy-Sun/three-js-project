@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>three.js webgpu - expressões faciais</title>
+		<title>three.js webgpu - morph face targets with AI</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
@@ -28,26 +28,33 @@
 				padding: 20px;
 				border-radius: 10px;
 				color: white;
-				max-width: 350px;
-				max-height: 80vh;
+				max-width: 400px;
+				max-height: 85vh;
 				overflow-y: auto;
 			}
 			#controls h3 {
-				margin-top: 0;
+				margin: 15px 0 10px 0;
 				color: #00ffff;
+				font-size: 16px;
 			}
-			input[type="text"] {
+			input[type="text"], textarea {
 				width: 100%;
 				padding: 10px;
-				margin: 10px 0;
+				margin: 8px 0;
 				border-radius: 5px;
 				border: 2px solid #00ffff;
 				background: #222;
 				color: white;
 				font-size: 14px;
+				box-sizing: border-box;
+			}
+			textarea {
+				resize: vertical;
+				height: 70px;
+				font-family: Arial, sans-serif;
 			}
 			button {
-				padding: 8px 15px;
+				padding: 10px 15px;
 				margin: 5px 5px 5px 0;
 				border: none;
 				border-radius: 5px;
@@ -60,18 +67,14 @@
 			button:hover {
 				background: #00cccc;
 			}
-			.command-list {
-				background: rgba(255, 255, 255, 0.05);
-				padding: 10px;
+			select {
+				width: 100%;
+				padding: 8px;
+				margin: 5px 0 10px 0;
 				border-radius: 5px;
-				margin: 10px 0;
-				font-size: 11px;
-			}
-			.command-item {
-				padding: 5px;
-				margin: 3px 0;
-				background: rgba(0, 255, 255, 0.1);
-				border-radius: 3px;
+				background: #222;
+				color: white;
+				border: 2px solid #00ffff;
 			}
 			#status {
 				margin-top: 10px;
@@ -79,66 +82,54 @@
 				background: rgba(0, 255, 255, 0.2);
 				border-radius: 5px;
 				font-size: 12px;
+				min-height: 20px;
 			}
-			.slider-control {
-				margin: 15px 0;
-				padding: 10px;
+			.info-box {
 				background: rgba(255, 255, 255, 0.05);
+				padding: 10px;
 				border-radius: 5px;
+				margin-top: 10px;
+				font-size: 10px;
+				color: #aaa;
+				line-height: 1.5;
 			}
-			.slider-control label {
-				display: block;
-				margin-bottom: 5px;
-				font-size: 12px;
-				color: #00ffff;
-			}
-			.slider-control input[type="range"] {
-				width: 100%;
-			}
-			.slider-control span {
-				font-size: 11px;
-				color: #ccc;
+			.divider {
+				margin: 15px 0;
+				padding-top: 15px;
+				border-top: 1px solid rgba(255,255,255,0.1);
 			}
 		</style>
 	</head>
 	<body>
 
 		<div id="info">
-			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgpu - Expressões faciais - Trabalho do Túlio<br/>
+			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgpu - AI Facial Animation<br/>
 			model by <a href="https://www.bannaflak.com/face-cap" target="_blank" rel="noopener">Face Cap</a>
 		</div>
 
 		<div id="controls">
-			<h3>🎭 Expression Commands</h3>
-			
-			<label>Modelo Groq:</label>
-			<select id="modelName" style="width: 100%; padding: 8px; margin: 5px 0 10px 0; border-radius: 5px; background: #222; color: white; border: 2px solid #00ffff;">
-				<option value="llama-3.1-70b-versatile">Llama 3.1 70B (Recomendado)</option>
-				<option value="llama-3.1-8b-instant">Llama 3.1 8B (Mais Rápido)</option>
-				<option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-				<option value="llama3-70b-8192">Llama 3 70B</option>
-				<option value="llama3-8b-8192">Llama 3 8B</option>
-			</select>
-			
-			<input type="text" id="commandInput" placeholder="Digite uma ou mais expressões (ex: feliz, triste, surpreso)">
-			<button onclick="executeCommand()">▶️ Executar</button>
+			<h3>🎭 Modo 1: Letra = Expressão</h3>
+			<input type="text" id="letterInput" placeholder="Digite letras separadas por vírgula ou 'e' (ex: A, B, C ou A e B e C)">
+			<button onclick="executeLetterExpression()">▶️ Gerar Expressão</button>
 			<button onclick="resetFace()">🔄 Reset</button>
-			<button onclick="loopExpression()" id="loopBtn">🔁 Loop Atual</button>
-			<button onclick="stopLoop()" id="stopLoopBtn" style="display:none;">⏹️ Parar</button>
 			
-			<div id="status">Digite um comando. A IA criará a expressão automaticamente!</div>
+			<div class="divider"></div>
 			
-			<div style="background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 10px; color: #aaa;">
-				💡 API Key configurada no código (linha 29)<br>
-				🎬 As expressões animam suavemente entre si!<br>
-				🔁 Múltiplas expressões: separe por vírgula ou "e"<br>
-				<strong>Exemplos:</strong><br>
-				• Uma: <code>evil</code><br>
-				• Duas: <code>feliz, triste</code> ou <code>happy and sad</code><br>
-				• Três+: <code>excited, scared, angry</code>
+			<h3>🗣️ Modo 2: Frase = Fala Fluida (offline)</h3>
+			<!-- IA local em uso; não requer modelo/remoto -->
+			<textarea id="speechInput" placeholder="Digite uma frase completa para simular fala natural...">Olá, como você está?</textarea>
+			<button onclick="startSpeaking()">🎤 Falar Frase</button>
+			<button onclick="stopSpeaking()" id="stopSpeakBtn" style="display:none;">⏹️ Parar</button>
+			
+			<div id="status">Aguardando comandos...</div>
+			
+			<div class="info-box">
+				✅ Executando em modo OFFLINE com IA local (heurística)
+				<br>
+				<strong>Modo 1:</strong> Letra única = letra mapeada para uma expressão (A=feliz, B=surpreso, etc)<br>
+				<strong>Modo 2:</strong> Frase completa = frase é convertida em keyframes para fala fluida<br>
+				📊 Parâmetros capturados: <span id="paramCount">...</span>
 			</div>
-
-
 		</div>
 
 		<script type="importmap">
@@ -162,892 +153,300 @@
 			import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 			import { Inspector } from 'three/addons/inspector/Inspector.js';
 
-			const GROQ_API_KEY = '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';
-			const DEFAULT_MODEL = 'llama-3.1-70b-versatile';
+			// Local offline heuristic "IA" - não é necessária API externa
+			// Usaremos regras simples e mapeamentos para gerar expressões e visemas localmente.
 
-			// ========== VARIÁVEIS GLOBAIS ==========
 			let mixer, headMesh, influences, morphTargetDictionary;
-			let clock;
-			let isAnimating = false;
-			let currentAnimation = null;
-			let loopInterval = null;
-			let lastExpression = null;
-			let expressionSequence = [];
-			let isPlayingSequence = false;
-			
-			// ========== DEFINIÇÃO DE EXPRESSÕES APRIMORADAS ==========
-			const expressions = {
-				// Felicidade
-				'feliz': { 
-					'mouthSmile_L': 0.9, 
-					'mouthSmile_R': 0.9, 
-					'eyeSquint_L': 0.4, 
-					'eyeSquint_R': 0.4,
-					'cheekSquint_L': 0.3,
-					'cheekSquint_R': 0.3
-				},
-				'happy': { 
-					'mouthSmile_L': 0.9, 
-					'mouthSmile_R': 0.9, 
-					'eyeSquint_L': 0.4, 
-					'eyeSquint_R': 0.4,
-					'cheekSquint_L': 0.3,
-					'cheekSquint_R': 0.3
-				},
-				'smile': { 
-					'mouthSmile_L': 0.8, 
-					'mouthSmile_R': 0.8,
-					'mouthDimple_L': 0.3,
-					'mouthDimple_R': 0.3
-				},
-				
-				// Tristeza
-				'triste': { 
-					'mouthFrown_L': 0.8, 
-					'mouthFrown_R': 0.8, 
-					'browInnerUp': 0.7,
-					'eyeSquint_L': 0.3,
-					'eyeSquint_R': 0.3,
-					'mouthLowerDown_L': 0.4,
-					'mouthLowerDown_R': 0.4
-				},
-				'sad': { 
-					'mouthFrown_L': 0.8, 
-					'mouthFrown_R': 0.8, 
-					'browInnerUp': 0.7,
-					'eyeSquint_L': 0.3,
-					'eyeSquint_R': 0.3,
-					'mouthLowerDown_L': 0.4,
-					'mouthLowerDown_R': 0.4
-				},
-				
-				// Surpresa
-				'surpreso': { 
-					'jawOpen': 0.7, 
-					'mouthOpen': 0.6, 
-					'browInnerUp': 0.9,
-					'browOuterUp_L': 0.8,
-					'browOuterUp_R': 0.8,
-					'eyeWide_L': 0.9, 
-					'eyeWide_R': 0.9
-				},
-				'surprised': { 
-					'jawOpen': 0.7, 
-					'mouthOpen': 0.6, 
-					'browInnerUp': 0.9,
-					'browOuterUp_L': 0.8,
-					'browOuterUp_R': 0.8,
-					'eyeWide_L': 0.9, 
-					'eyeWide_R': 0.9
-				},
-				
-				// Raiva
-				'bravo': { 
-					'mouthFrown_L': 0.7, 
-					'mouthFrown_R': 0.7, 
-					'browDown_L': 0.9, 
-					'browDown_R': 0.9, 
-					'noseSneer_L': 0.6, 
-					'noseSneer_R': 0.6,
-					'jawForward': 0.4,
-					'mouthPress_L': 0.5,
-					'mouthPress_R': 0.5
-				},
-				'angry': { 
-					'mouthFrown_L': 0.7, 
-					'mouthFrown_R': 0.7, 
-					'browDown_L': 0.9, 
-					'browDown_R': 0.9, 
-					'noseSneer_L': 0.6, 
-					'noseSneer_R': 0.6,
-					'jawForward': 0.4,
-					'mouthPress_L': 0.5,
-					'mouthPress_R': 0.5
-				},
-				
-				// Malvado/Evil
-				'evil': {
-					'mouthSmile_L': 0.6,
-					'mouthSmile_R': 0.3,  // Sorriso assimétrico
-					'browDown_L': 0.5,
-					'browDown_R': 0.7,    // Sobrancelhas assimétricas
-					'eyeSquint_L': 0.4,
-					'eyeSquint_R': 0.6,
-					'noseSneer_R': 0.3,
-					'mouthSmile_L': 0.5,
-					'mouthFrown_R': 0.2
-				},
-				'malvado': {
-					'mouthSmile_L': 0.6,
-					'mouthSmile_R': 0.3,
-					'browDown_L': 0.5,
-					'browDown_R': 0.7,
-					'eyeSquint_L': 0.4,
-					'eyeSquint_R': 0.6,
-					'noseSneer_R': 0.3
-				},
-				
-				// Outras expressões
-				'piscar': { 
-					'eyeBlink_L': 1.0, 
-					'eyeBlink_R': 1.0 
-				},
-				'blink': { 
-					'eyeBlink_L': 1.0, 
-					'eyeBlink_R': 1.0 
-				},
-				
-				'beijar': { 
-					'mouthPucker': 0.9, 
-					'mouthFunnel': 0.7,
-					'eyeBlink_L': 0.5,
-					'eyeBlink_R': 0.5
-				},
-				'kiss': { 
-					'mouthPucker': 0.9, 
-					'mouthFunnel': 0.7,
-					'eyeBlink_L': 0.5,
-					'eyeBlink_R': 0.5
-				},
-				
-				'falar': { 
-					'jawOpen': 0.5, 
-					'mouthOpen': 0.4,
-					'tongueOut': 0.1
-				},
-				'talk': { 
-					'jawOpen': 0.5, 
-					'mouthOpen': 0.4,
-					'tongueOut': 0.1
-				},
-				
-				'pensativo': { 
-					'browInnerUp': 0.4,
-					'browDown_L': 0.2, 
-					'browDown_R': 0.2, 
-					'eyeSquint_L': 0.2, 
-					'eyeSquint_R': 0.2, 
-					'mouthPress_L': 0.3, 
-					'mouthPress_R': 0.3,
-					'mouthRollLower': 0.2
-				},
-				'thinking': { 
-					'browInnerUp': 0.4,
-					'browDown_L': 0.2, 
-					'browDown_R': 0.2, 
-					'eyeSquint_L': 0.2, 
-					'eyeSquint_R': 0.2, 
-					'mouthPress_L': 0.3, 
-					'mouthPress_R': 0.3,
-					'mouthRollLower': 0.2
-				}
-			};
+			let clock, currentAnimation = null;
+			let allMorphParams = [], isSpeaking = false;
+			let letterExpressionCache = {};
+			let localFaceAI = null;
+			let isAnimatingLetters = false;
+			// Global scale for animation durations. >1 slows animations (10% slower here)
+			let animationDurationScale = 1.1; // 1.0 = normal, 1.1 = 10% slower
 
 			init();
 
 			async function init() {
-
 				clock = new THREE.Clock();
-
-				const camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 20 );
-				camera.position.set( - 1.8, 0.8, 3 );
-
+				const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 20);
+				camera.position.set(-1.8, 0.8, 3);
 				const scene = new THREE.Scene();
-
-				const renderer = new THREE.WebGPURenderer( { antialias: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.setAnimationLoop( animate );
+				const renderer = new THREE.WebGPURenderer({ antialias: true });
+				renderer.setPixelRatio(window.devicePixelRatio);
+				renderer.setSize(window.innerWidth, window.innerHeight);
+				renderer.setAnimationLoop(animate);
 				renderer.toneMapping = THREE.ACESFilmicToneMapping;
 				renderer.inspector = new Inspector();
-				document.body.appendChild( renderer.domElement );
-
+				document.body.appendChild(renderer.domElement);
 				await renderer.init();
 
 				const environment = new RoomEnvironment();
-				const pmremGenerator = new THREE.PMREMGenerator( renderer );
-
-				scene.background = new THREE.Color( 0x666666 );
-				scene.environment = pmremGenerator.fromScene( environment ).texture;
+				const pmremGenerator = new THREE.PMREMGenerator(renderer);
+				scene.background = new THREE.Color(0x666666);
+				scene.environment = pmremGenerator.fromScene(environment).texture;
 
 				const ktx2Loader = await new KTX2Loader()
-					.setTranscoderPath( 'jsm/libs/basis/' )
-					.detectSupport( renderer );
+					.setTranscoderPath('jsm/libs/basis/')
+					.detectSupport(renderer);
 
 				new GLTFLoader()
-					.setKTX2Loader( ktx2Loader )
-					.setMeshoptDecoder( MeshoptDecoder )
-					.load( 'models/gltf/facecap.glb', ( gltf ) => {
+					.setKTX2Loader(ktx2Loader)
+					.setMeshoptDecoder(MeshoptDecoder)
+					.load('models/gltf/facecap.glb', (gltf) => {
+						const mesh = gltf.scene.children[0];
+						scene.add(mesh);
 
-						const mesh = gltf.scene.children[ 0 ];
-						scene.add( mesh );
-
-						// ========== MIXER REMOVIDO - SEM ANIMAÇÃO AUTOMÁTICA ==========
-						// mixer = new THREE.AnimationMixer( mesh );
-						// mixer.clipAction( gltf.animations[ 0 ] ).play();
-
-						// ========== CAPTURA DOS PARÂMETROS ==========
-						headMesh = mesh.getObjectByName( 'mesh_2' );
+						headMesh = mesh.getObjectByName('mesh_2');
 						influences = headMesh.morphTargetInfluences;
 						morphTargetDictionary = headMesh.morphTargetDictionary;
 
-						console.log('=== MORPH TARGETS DISPONÍVEIS ===');
-						console.log(morphTargetDictionary);
+						allMorphParams = Object.keys(morphTargetDictionary).map(key => ({
+							name: key.replace('blendShape1.', ''),
+							index: morphTargetDictionary[key]
+						}));
 
-						// GUI do Inspector
-						const gui = renderer.inspector.createParameters( 'Morph Targets' );
+						console.log('✅ Parâmetros capturados:', allMorphParams.length);
 
-						for ( const [ key, value ] of Object.entries( morphTargetDictionary ) ) {
-							gui.add( influences, value, 0, 1, 0.01 )
-								.name( key.replace( 'blendShape1.', '' ) )
-								.listen();
+						const gui = renderer.inspector.createParameters('Morph Targets');
+						for (const [key, value] of Object.entries(morphTargetDictionary)) {
+							gui.add(influences, value, 0, 1, 0.01).name(key.replace('blendShape1.', '')).listen();
 						}
 
-						// Criar controles manuais removidos - sem sliders
+						updateStatus('✅ Modelo carregado! ' + allMorphParams.length + ' parâmetros prontos');
+						document.getElementById('paramCount').textContent = allMorphParams.length;
+						// Inicializa IA local com os nomes dos parâmetros
+						localFaceAI = new LocalFaceAI(allMorphParams.map(p => p.name));
+					});
 
-						updateStatus('✅ Modelo carregado! ' + Object.keys(morphTargetDictionary).length + ' parâmetros disponíveis.');
-
-					} );
-
-				scene.background = new THREE.Color( 0x666666 );
-
-				const controls = new OrbitControls( camera, renderer.domElement );
+				const controls = new OrbitControls(camera, renderer.domElement);
 				controls.enableDamping = true;
 				controls.minDistance = 2.5;
 				controls.maxDistance = 5;
-				controls.minAzimuthAngle = - Math.PI / 2;
-				controls.maxAzimuthAngle = Math.PI / 2;
-				controls.maxPolarAngle = Math.PI / 1.8;
-				controls.target.set( 0, 0.15, - 0.2 );
+				controls.target.set(0, 0.15, -0.2);
 
 				function animate() {
-
-					const delta = clock.getDelta();
-
-					// ========== MIXER REMOVIDO ==========
-					// if ( mixer ) {
-					// 	mixer.update( delta );
-					// }
-
-					renderer.render( scene, camera );
+					renderer.render(scene, camera);
 					controls.update();
-
 				}
 
-				window.addEventListener( 'resize', () => {
-
+				window.addEventListener('resize', () => {
 					camera.aspect = window.innerWidth / window.innerHeight;
 					camera.updateProjectionMatrix();
-
-					renderer.setSize( window.innerWidth, window.innerHeight );
-
-				} );
-
+					renderer.setSize(window.innerWidth, window.innerHeight);
+				});
 			}
 
-			// ========== FUNÇÕES DE CONTROLE ==========
-
-			function updateStatus(message) {
-				document.getElementById('status').textContent = message;
+			function updateStatus(msg) {
+				document.getElementById('status').textContent = msg;
 			}
 
-			window.executeCommand = async function() {
-				const command = document.getElementById('commandInput').value.trim().toLowerCase();
-				
-				if (!command) {
-					updateStatus('⚠️ Digite um comando!');
-					return;
+			// Local heuristic face "AI" to generate expressions and speech keyframes
+			class LocalFaceAI {
+				constructor(paramNames){
+					this.params = new Set(paramNames);
 				}
 
-				if (!influences) {
-					updateStatus('⚠️ Aguarde o modelo carregar!');
-					return;
-				}
+				_clamp(v){ return Math.max(0, Math.min(1, v)); }
 
-				// Detectar se há múltiplas expressões (separadas por vírgula, "e", "and", "então", "depois")
-				const separators = /,|\se\s|\sand\s|\sentão\s|\sdepois\s|\sen\s/i;
-				const commands = command.split(separators).map(c => c.trim()).filter(c => c);
+				generateExpressionForLetter(letter){
+					// Simple mapping of letters to moods
+					const presets = {
+						HAPPY: { mouthSmile_L:0.8, mouthSmile_R:0.8, jawOpen:0.05, mouthOpen:0.02, eyeSquint_L:0.15, eyeSquint_R:0.15 },
+						SURPRISED: { jawOpen:0.8, mouthOpen:0.9, eyeWide_L:0.6, eyeWide_R:0.6 },
+						SAD: { mouthSmile_L:0.0, mouthSmile_R:0.0, browInnerUp:0.6, jawOpen:0.02 },
+						ANGRY: { noseSneer_L:0.6, noseSneer_R:0.6, mouthFrown:0.6 }
+					};
 
-				if (commands.length > 1) {
-					// Múltiplas expressões - criar sequência
-					updateStatus(`🎬 Detectadas ${commands.length} expressões. Processando sequência...`);
-					await processExpressionSequence(commands);
-				} else {
-					// Expressão única
-					if (expressions[command]) {
-						applyExpression(command);
-						lastExpression = expressions[command];
-						updateStatus(`✅ Expressão "${command}" aplicada com animação!`);
-					} else {
-						updateStatus(`🤖 Usando IA para interpretar "${command}"...`);
-						await useAIToInterpret(command);
-					}
-				}
-			}
+					const map = { 'A':'HAPPY','E':'HAPPY','I':'HAPPY','O':'SURPRISED','U':'HAPPY',
+						'B':'SURPRISED','C':'CONFUSED','D':'ANGRY','F':'SAD','G':'SURPRISED','H':'SURPRISED','J':'HAPPY','K':'ANGRY','L':'HAPPY','M':'HAPPY','N':'HAPPY','P':'SURPRISED','Q':'SURPRISED','R':'CONFUSED','S':'SURPRISED','T':'ANGRY','V':'SAD','W':'HAPPY','X':'ANGRY','Y':'HAPPY','Z':'ANGRY' };
 
-			async function processExpressionSequence(commands) {
-				expressionSequence = [];
+					const mood = map[letter] || 'HAPPY';
+					let base = {};
+					if (mood === 'HAPPY') base = presets.HAPPY;
+					else if (mood === 'SURPRISED') base = presets.SURPRISED;
+					else if (mood === 'SAD') base = presets.SAD;
+					else if (mood === 'ANGRY') base = presets.ANGRY || presets.ANGRY;
+					else if (mood === 'CONFUSED') base = { mouthFunnel:0.2, browInnerUp:0.5, mouthOpen:0.1 };
 
-				// Processar cada comando
-				for (let i = 0; i < commands.length; i++) {
-					const cmd = commands[i];
-					updateStatus(`🤖 Processando ${i + 1}/${commands.length}: "${cmd}"...`);
-
-					if (expressions[cmd]) {
-						// Expressão pré-definida
-						expressionSequence.push({
-							name: cmd,
-							params: expressions[cmd]
-						});
-					} else {
-						// Usar IA
-						const params = await getExpressionFromAI(cmd);
-						if (params) {
-							expressionSequence.push({
-								name: cmd,
-								params: params
-							});
-							expressions[cmd] = params;
-						}
-					}
-				}
-
-				if (expressionSequence.length > 0) {
-					updateStatus(`✅ Sequência de ${expressionSequence.length} expressões pronta! Iniciando...`);
-					playExpressionSequence();
-				} else {
-					updateStatus(`❌ Não foi possível criar a sequência`);
-				}
-			}
-
-			async function getExpressionFromAI(command) {
-				const apiKey = GROQ_API_KEY;
-				const model = document.getElementById('modelName').value;
-
-				if (!apiKey || apiKey === 'SUA_CHAVE_AQUI') {
-					return null;
-				}
-
-				try {
-					const availableParams = Object.keys(morphTargetDictionary)
-						.map(k => k.replace('blendShape1.', ''))
-						.join(', ');
-
-					const systemPrompt = `You are an expert in facial animation and ARKit blendshapes. You create realistic facial expressions by combining multiple facial parameters.
-
-CRITICAL RULES:
-1. ALWAYS use asymmetry for complex emotions (different values for _L and _R)
-2. Combine multiple muscle groups (eyes, brows, mouth, nose, jaw)
-3. Use subtle values (0.3-0.7) for most parameters, reserve 0.8-1.0 for extreme expressions
-4. Return ONLY valid JSON, no markdown, no explanations
-
-Example of good asymmetric expression (evil/smirk):
-{"mouthSmile_L": 0.6, "mouthSmile_R": 0.2, "browDown_L": 0.4, "browDown_R": 0.7, "eyeSquint_L": 0.3, "eyeSquint_R": 0.5}`;
-
-					const userPrompt = `Create facial expression for: "${command}"
-
-Available parameters: ${availableParams}
-
-Return ONLY JSON format (no markdown):
-{"parameter1": value, "parameter2": value}
-
-Expression: "${command}"
-JSON:`;
-
-					const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-						method: 'POST',
-						headers: {
-							'Authorization': `Bearer ${apiKey}`,
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							model: model,
-							messages: [
-								{ role: 'system', content: systemPrompt },
-								{ role: 'user', content: userPrompt }
-							],
-							temperature: 0.8,
-							max_tokens: 1500,
-							top_p: 0.9
-						})
-					});
-
-					if (!response.ok) {
-						return null;
+					const expr = {};
+					for (const k in base){
+						if (this.params.has(k)) expr[k] = this._clamp(base[k]);
 					}
 
-					const data = await response.json();
-					const aiResponse = data.choices[0].message.content.trim();
+					// micro-movements
+					if (this.params.has('mouthOpen')) expr.mouthOpen = this._clamp((expr.mouthOpen || 0) + (Math.random()-0.5)*0.08);
+					if (this.params.has('jawOpen')) expr.jawOpen = this._clamp((expr.jawOpen || 0) + (Math.random()-0.5)*0.06);
 
-					let cleanResponse = aiResponse
-						.replace(/```json\s*/g, '')
-						.replace(/```\s*/g, '')
-						.trim();
-
-					const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
-					if (jsonMatch) {
-						return JSON.parse(jsonMatch[0]);
-					}
-
-					return null;
-
-				} catch (error) {
-					console.error('Erro ao obter expressão da IA:', error);
-					return null;
-				}
-			}
-
-			function playExpressionSequence() {
-				if (isPlayingSequence) {
-					stopSequence();
+					return expr;
 				}
 
-				isPlayingSequence = true;
-				let currentIndex = 0;
-
-				function playNext() {
-					if (!isPlayingSequence || currentIndex >= expressionSequence.length) {
-						// Reiniciar sequência
-						currentIndex = 0;
-						if (!isPlayingSequence) return;
-					}
-
-					const expr = expressionSequence[currentIndex];
-					updateStatus(`🎬 Reproduzindo: "${expr.name}" (${currentIndex + 1}/${expressionSequence.length})`);
-
-					animateToExpression(expr.params, 1.5);
-					lastExpression = expr.params;
-
-					currentIndex++;
-
-					// Próxima expressão após 3 segundos
-					setTimeout(playNext, 3000);
-				}
-
-				// Iniciar sequência
-				playNext();
-
-				// Atualizar botões
-				document.getElementById('loopBtn').style.display = 'none';
-				document.getElementById('stopLoopBtn').style.display = 'inline-block';
-			}
-
-			function stopSequence() {
-				isPlayingSequence = false;
-				expressionSequence = [];
-				
-				document.getElementById('loopBtn').style.display = 'inline-block';
-				document.getElementById('stopLoopBtn').style.display = 'none';
-				
-				updateStatus('⏹️ Sequência parada');
-			}
-
-			window.loopExpression = function() {
-				if (!lastExpression || !influences) {
-					updateStatus('⚠️ Execute uma expressão primeiro!');
-					return;
-				}
-
-				// Parar loop anterior se existir
-				stopLoop();
-
-				document.getElementById('loopBtn').style.display = 'none';
-				document.getElementById('stopLoopBtn').style.display = 'inline-block';
-
-				updateStatus('🔁 Loop ativo - alternando entre neutro e expressão');
-
-				let isNeutral = false;
-
-				function toggleExpression() {
-					if (isNeutral) {
-						animateToExpression(lastExpression, 1.5);
-					} else {
-						const neutral = {};
-						for (let i = 0; i < influences.length; i++) {
-							neutral[i] = 0;
-						}
-						animateToExpression(neutral, 1.5);
-					}
-					isNeutral = !isNeutral;
-				}
-
-				// Iniciar com a expressão
-				animateToExpression(lastExpression, 1.5);
-				isNeutral = true;
-
-				// Loop a cada 3 segundos
-				loopInterval = setInterval(toggleExpression, 3000);
-			}
-
-			window.stopLoop = function() {
-				if (loopInterval) {
-					clearInterval(loopInterval);
-					loopInterval = null;
-				}
-
-				// Parar sequência também
-				if (isPlayingSequence) {
-					stopSequence();
-				}
-
-				document.getElementById('loopBtn').style.display = 'inline-block';
-				document.getElementById('stopLoopBtn').style.display = 'none';
-
-				updateStatus('⏹️ Loop parado');
-			}
-
-			async function useAIToInterpret(command) {
-				const apiKey = GROQ_API_KEY; // Usa a chave fixa do código
-				const model = document.getElementById('modelName').value;
-				
-				if (!apiKey || apiKey === 'SUA_CHAVE_AQUI') {
-					updateStatus('⚠️ Configure a GROQ_API_KEY no código! Linha 29');
-					return;
-				}
-
-				if (!apiKey.startsWith('gsk_')) {
-					updateStatus('⚠️ API Key inválida! Groq keys começam com "gsk_"');
-					return;
-				}
-
-				updateStatus(`🤖 Groq (${model}) interpretando "${command}"...`);
-
-				try {
-					// Criar lista de parâmetros disponíveis
-					const availableParams = Object.keys(morphTargetDictionary)
-						.map(k => k.replace('blendShape1.', ''))
-						.join(', ');
-
-					const systemPrompt = `You are an expert in facial animation and ARKit blendshapes. You create realistic facial expressions by combining multiple facial parameters.
-
-CRITICAL RULES:
-1. ALWAYS use asymmetry for complex emotions (different values for _L and _R)
-2. Combine multiple muscle groups (eyes, brows, mouth, nose, jaw)
-3. Use subtle values (0.3-0.7) for most parameters, reserve 0.8-1.0 for extreme expressions
-4. Return ONLY valid JSON, no markdown, no explanations
-
-Example of good asymmetric expression (evil/smirk):
-{"mouthSmile_L": 0.6, "mouthSmile_R": 0.2, "browDown_L": 0.4, "browDown_R": 0.7, "eyeSquint_L": 0.3, "eyeSquint_R": 0.5}`;
-					
-					const userPrompt = `Create facial expression for: "${command}"
-
-Available parameters (use exact names):
-${availableParams}
-
-KEY PARAMETER GROUPS:
-
-MOUTH:
-- mouthSmile_L/R: corners up (smile)
-- mouthFrown_L/R: corners down (frown)
-- mouthPucker: lips forward (kiss)
-- mouthFunnel: lips funnel in
-- mouthPress_L/R: lips pressed together
-- mouthRollLower/Upper: lips rolled in
-- mouthShrugLower/Upper: lip shrug
-- mouthLowerDown_L/R: lower lip down
-- mouthUpperUp_L/R: upper lip up
-- jawOpen: jaw opening
-- jawForward: jaw forward (aggressive)
-- jawLeft/Right: jaw sideways
-
-EYES:
-- eyeBlink_L/R: close eyes (0=open, 1=closed)
-- eyeWide_L/R: wide eyes (surprise, fear)
-- eyeSquint_L/R: squint (smile, suspicion)
-- eyeLookUp/Down/Left/Right: gaze direction
-
-BROWS:
-- browDown_L/R: lower brow (anger, focus)
-- browInnerUp: inner brow up (sadness, pleading)
-- browOuterUp_L/R: outer brow up (surprise)
-
-NOSE/CHEEKS:
-- noseSneer_L/R: nose wrinkle (disgust, anger)
-- cheekPuff: puff cheeks
-- cheekSquint_L/R: cheek raise (smile)
-
-EMOTION GUIDELINES:
-- Evil/Smirk: Asymmetric smile, one brow lower, slight squint
-- Angry: Symmetric frown, both brows down, nose sneer, jaw forward
-- Sad: Frown, inner brows up, slight squint
-- Happy: Symmetric smile, cheek squint, slight eye squint
-- Scared: Wide eyes, brows up, mouth open
-- Disgusted: Nose sneer, upper lip up, brows down
-
-Return ONLY JSON format (no markdown):
-{"parameter1": value, "parameter2": value}
-
-Expression: "${command}"
-JSON:`;
-
-					const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-						method: 'POST',
-						headers: {
-							'Authorization': `Bearer ${apiKey}`,
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							model: model,
-							messages: [
-								{ role: 'system', content: systemPrompt },
-								{ role: 'user', content: userPrompt }
-							],
-							temperature: 0.8,
-							max_tokens: 1500,
-							top_p: 0.9
-						})
-					});
-
-					if (!response.ok) {
-						const errorData = await response.json();
-						console.error('Erro da API:', errorData);
-						throw new Error(`Groq API Error ${response.status}: ${errorData.error?.message || 'Verifique sua API Key'}`);
-					}
-
-					const data = await response.json();
-					const aiResponse = data.choices[0].message.content.trim();
-					
-					console.log('Resposta bruta da IA:', aiResponse);
-					
-					// Fazer parse do JSON retornado
-					let expressionParams;
-					try {
-						// Remover markdown se existir (```json ... ```)
-						let cleanResponse = aiResponse
-							.replace(/```json\s*/g, '')
-							.replace(/```\s*/g, '')
-							.trim();
-						
-						// Tentar encontrar JSON no texto
-						const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
-						if (jsonMatch) {
-							expressionParams = JSON.parse(jsonMatch[0]);
+				generateKeyframesForText(text){
+					const frames = [];
+					const vowels = new Set(['A','E','I','O','U','Á','É','Í','Ó','Ú','À','È','Ì','Ò','Ù','Ã','Õ','Â','Ê','Î','Ô','Û','Y']);
+					const tokens = text.toUpperCase().split('');
+					for (let i=0;i<tokens.length;i++){
+						const ch = tokens[i];
+						if (ch === ' '){ frames.push({ duration: 0.08 }); continue; }
+						if (vowels.has(ch)){
+							const frame = {};
+							if (this.params.has('jawOpen')) frame.jawOpen = 0.45 + Math.random()*0.15;
+							if (this.params.has('mouthOpen')) frame.mouthOpen = 0.5 + Math.random()*0.25;
+							frame.duration = 0.09 + Math.random()*0.06;
+							frames.push(frame);
 						} else {
-							expressionParams = JSON.parse(cleanResponse);
+							const frame = {};
+							if (this.params.has('mouthFunnel')) frame.mouthFunnel = 0.25 + Math.random()*0.25;
+							if (this.params.has('mouthPucker')) frame.mouthPucker = 0.15 + Math.random()*0.25;
+							if (this.params.has('jawOpen')) frame.jawOpen = 0.08 + Math.random()*0.08;
+							frame.duration = 0.06 + Math.random()*0.06;
+							frames.push(frame);
 						}
-					} catch (parseError) {
-						console.error('Erro ao fazer parse. Resposta da IA:', aiResponse);
-						updateStatus('❌ IA retornou formato inválido. Tentando novamente com comando simplificado...');
-						
-						// Tentar uma segunda vez com prompt mais simples
-						return await retryWithSimplePrompt(command, apiKey, model);
 					}
 
-					// Validar que temos pelo menos um parâmetro
-					if (!expressionParams || Object.keys(expressionParams).length === 0) {
-						throw new Error('IA não retornou parâmetros faciais');
+					// small smiles distributed
+					for (let i=0;i<frames.length;i+=Math.max(1,Math.floor(frames.length/6))){
+						if (this.params.has('mouthSmile_L') && this.params.has('mouthSmile_R')){
+							frames[i].mouthSmile_L = 0.18;
+							frames[i].mouthSmile_R = 0.18;
+						}
 					}
 
-					console.log('Parâmetros extraídos:', expressionParams);
-
-					// Aplicar a expressão gerada pela IA
-					applyCustomExpression(expressionParams);
-					
-					// Salvar na lista de expressões para uso futuro
-					expressions[command] = expressionParams;
-					lastExpression = expressionParams;
-					
-					updateStatus(`✅ "${command}" criado pela Groq e aplicado com animação! (${Object.keys(expressionParams).length} parâmetros)`);
-
-				} catch (error) {
-					console.error('Erro completo:', error);
-					updateStatus(`❌ Erro: ${error.message}`);
+					return frames;
 				}
 			}
+			// Override: implement local versions (offline) for letter expressions and speech
+			window.executeLetterExpression = async function() {
+				const raw = document.getElementById('letterInput').value.trim().toUpperCase();
+				if (!raw) { updateStatus('⚠️ Digite pelo menos UMA letra!'); return; }
 
-			async function retryWithSimplePrompt(command, apiKey, model) {
+				if (!influences || !allMorphParams.length) { updateStatus('⚠️ Aguarde o modelo carregar!'); return; }
+				if (!localFaceAI) { updateStatus('⚠️ IA local não inicializada ainda.'); return; }
+
+				// Parse input: accept commas, spaces, ' E ' (Portuguese) or 'AND'
+				const letters = (raw.replace(/\band\b/gi, ',').replace(/\be\b/gi, ',').replace(/[^A-Z,]/g, ',')
+					.split(',').map(s=>s.trim()).filter(Boolean).map(s=>s[0]));
+
+				if (!letters.length) { updateStatus('⚠️ Nenhuma letra válida encontrada.'); return; }
+
+				updateStatus(`🎭 Animando sequência: ${letters.join(', ')}`);
+				isAnimatingLetters = true;
+
 				try {
-					const simplePrompt = `You are a facial expression animator. Create JSON for "${command}" expression.
-
-Use these ARKit blendshapes with values 0-1:
-
-MOUTH: mouthSmile_L, mouthSmile_R, mouthFrown_L, mouthFrown_R, mouthPucker, mouthPress_L, mouthPress_R, jawOpen, jawForward
-EYES: eyeBlink_L, eyeBlink_R, eyeWide_L, eyeWide_R, eyeSquint_L, eyeSquint_R
-BROWS: browDown_L, browDown_R, browInnerUp, browOuterUp_L, browOuterUp_R
-NOSE: noseSneer_L, noseSneer_R
-CHEEKS: cheekSquint_L, cheekSquint_R
-
-IMPORTANT: Use asymmetry (different L/R values) for complex emotions!
-
-Examples:
-Evil: {"mouthSmile_L": 0.6, "mouthSmile_R": 0.2, "browDown_R": 0.7, "eyeSquint_R": 0.5}
-Angry: {"mouthFrown_L": 0.7, "mouthFrown_R": 0.7, "browDown_L": 0.9, "browDown_R": 0.9, "noseSneer_L": 0.6, "noseSneer_R": 0.6}
-Happy: {"mouthSmile_L": 0.9, "mouthSmile_R": 0.9, "eyeSquint_L": 0.4, "eyeSquint_R": 0.4, "cheekSquint_L": 0.3, "cheekSquint_R": 0.3}
-
-Return ONLY JSON for "${command}":`;
-
-					const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-						method: 'POST',
-						headers: {
-							'Authorization': `Bearer ${apiKey}`,
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							model: model,
-							messages: [{ role: 'user', content: simplePrompt }],
-							temperature: 0.8,
-							max_tokens: 800
-						})
-					});
-
-					const data = await response.json();
-					const aiResponse = data.choices[0].message.content.trim();
-					console.log('Resposta do retry:', aiResponse);
-					
-					const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-					if (!jsonMatch) {
-						throw new Error('Não foi possível extrair JSON da resposta');
+					for (let i=0;i<letters.length && isAnimatingLetters;i++){
+						const L = letters[i];
+						// generate base expression and apply small random variation per-letter
+						let expr = localFaceAI.generateExpressionForLetter(L);
+						for (const k of Object.keys(expr)){
+							expr[k] = Math.max(0, Math.min(1, expr[k] * (0.85 + Math.random()*0.3) + (Math.random()-0.5)*0.06));
+						}
+						// cache unique per-letter+seed (simple)
+						letterExpressionCache[L+"#"+i] = expr;
+						// animate to expression
+						await animateToExpression(expr, 0.6, true);
 					}
-					
-					const expressionParams = JSON.parse(jsonMatch[0]);
-
-					applyCustomExpression(expressionParams);
-					expressions[command] = expressionParams;
-					lastExpression = expressionParams;
-					updateStatus(`✅ "${command}" criado (modo simplificado) e aplicado com animação!`);
-
-				} catch (retryError) {
-					updateStatus(`❌ Não foi possível criar a expressão. Tente outro comando.`);
-					console.error('Erro no retry:', retryError);
+					// smooth return to rest
+					if (isAnimatingLetters) await animateToExpression({}, 0.5, true);
+					updateStatus('✅ Sequência concluída');
+				} catch (e) {
+					console.error('Erro sequência:', e);
+					updateStatus('❌ Erro: ' + e.message);
+				} finally {
+					isAnimatingLetters = false;
 				}
 			}
 
-			function applyCustomExpression(expressionParams) {
-				// Animar suavemente para a expressão customizada
-				animateToExpression(expressionParams, 1.2);
+			window.startSpeaking = async function() {
+				const text = document.getElementById('speechInput').value.trim();
+				if (!text) { updateStatus('⚠️ Digite uma frase para falar!'); return; }
+				if (!influences || !allMorphParams.length) { updateStatus('⚠️ Aguarde o modelo carregar!'); return; }
+				if (!localFaceAI) { updateStatus('⚠️ IA local não inicializada ainda.'); return; }
+
+				stopSpeaking();
+				isSpeaking = true;
+				document.getElementById('stopSpeakBtn').style.display = 'inline-block';
+				updateStatus('🤖 Gerando fala (IA local) e animando...');
+				try {
+					const keyframes = localFaceAI.generateKeyframesForText(text);
+					for (let i=0;i<keyframes.length && isSpeaking;i++){
+						const frame = keyframes[i];
+						const duration = frame.duration || 0.12;
+						delete frame.duration;
+						await animateToExpression(frame, duration, true);
+					}
+					if (isSpeaking) await animateToExpression({}, 0.5, true);
+					stopSpeaking();
+					updateStatus('✅ Fala concluída (local)!');
+				} catch (e) {
+					console.error('Erro local IA:', e);
+					stopSpeaking();
+					updateStatus('❌ Erro: ' + e.message);
+				}
 			}
 
-			function applyExpression(expressionName) {
-				const expression = expressions[expressionName];
-				
-				// Animar suavemente para a expressão
-				animateToExpression(expression, 1.0);
-			}
-
-			function animateToExpression(targetExpression, duration = 1.0) {
-				if (!influences) return;
-
-				// Cancelar animação anterior se existir
-				if (currentAnimation) {
-					cancelAnimationFrame(currentAnimation);
-				}
-
-				// Salvar valores iniciais
-				const startValues = {};
-				for (let i = 0; i < influences.length; i++) {
-					startValues[i] = influences[i];
-				}
-
-				// Preparar valores alvo
-				const targetValues = {};
-				
-				// Reset todos primeiro
-				for (let i = 0; i < influences.length; i++) {
-					targetValues[i] = 0;
-				}
-				
-				// Aplicar valores da expressão
-				for (const [paramName, value] of Object.entries(targetExpression)) {
-					const index = getParamIndex(paramName);
-					if (index !== -1) {
-						targetValues[index] = value;
-					}
-				}
-
-				// Animar
-				const startTime = Date.now();
-				
-				function animate() {
-					const elapsed = (Date.now() - startTime) / 1000;
-					const progress = Math.min(elapsed / duration, 1);
-					
-					// Easing suave (ease-in-out)
-					const eased = progress < 0.5 
-						? 2 * progress * progress 
-						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
-					
-					// Interpolar todos os valores
-					for (let i = 0; i < influences.length; i++) {
-						const start = startValues[i] || 0;
-						const target = targetValues[i] || 0;
-						influences[i] = start + (target - start) * eased;
-					}
-					
-					if (progress < 1) {
-						currentAnimation = requestAnimationFrame(animate);
-					} else {
-						currentAnimation = null;
-					}
-				}
-				
-				animate();
-			}
-
-			function getParamIndex(paramName) {
-				for (const [key, index] of Object.entries(morphTargetDictionary)) {
-					const cleanKey = key.replace('blendShape1.', '').toLowerCase();
-					if (cleanKey === paramName.toLowerCase()) {
-						return index;
-					}
-				}
-				return -1;
+			window.stopSpeaking = function() {
+				isSpeaking = false;
+				document.getElementById('stopSpeakBtn').style.display = 'none';
 			}
 
 			window.resetFace = function() {
 				if (!influences) return;
-				
-				// Cancelar animação atual
-				if (currentAnimation) {
-					cancelAnimationFrame(currentAnimation);
-					currentAnimation = null;
-				}
-				
-				// Animar suavemente para posição neutra
-				const neutralExpression = {};
-				for (let i = 0; i < influences.length; i++) {
-					neutralExpression[i] = 0;
-				}
-				
-				const startTime = Date.now();
-				const duration = 0.8;
-				
-				const startValues = {};
-				for (let i = 0; i < influences.length; i++) {
-					startValues[i] = influences[i];
-				}
-				
-				function animate() {
-					const elapsed = (Date.now() - startTime) / 1000;
-					const progress = Math.min(elapsed / duration, 1);
-					
-					const eased = progress < 0.5 
-						? 2 * progress * progress 
-						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
-					
-					for (let i = 0; i < influences.length; i++) {
-						influences[i] = startValues[i] * (1 - eased);
-					}
-					
-					if (progress < 1) {
-						currentAnimation = requestAnimationFrame(animate);
-					} else {
-						currentAnimation = null;
-					}
-				}
-				
-				animate();
+				// Stop any ongoing animations
+				isAnimatingLetters = false;
+				isSpeaking = false;
+				animateToExpression({}, 0.8);
 				updateStatus('🔄 Face resetada');
 			}
-			document.addEventListener('DOMContentLoaded', () => {
-				const input = document.getElementById('commandInput');
-				if (input) {
-					input.addEventListener('keypress', (e) => {
-						if (e.key === 'Enter') {
-							executeCommand();
+
+			function animateToExpression(target, duration, isAsync = false) {
+				return new Promise((resolve) => {
+					if (!influences) {
+						resolve();
+						return;
+					}
+
+					if (currentAnimation && !isAsync) {
+						cancelAnimationFrame(currentAnimation);
+					}
+
+					const start = {};
+					for (let i = 0; i < influences.length; i++) {
+						start[i] = influences[i];
+					}
+
+					const startTime = Date.now();
+                    
+					function anim() {
+						const elapsed = (Date.now() - startTime) / 1000;
+						const effectiveDuration = Math.max(0.001, (duration || 0.001) * (typeof animationDurationScale === 'number' ? animationDurationScale : 1));
+						const progress = Math.min(elapsed / effectiveDuration, 1);
+						
+						// Easing suave
+						const eased = progress < 0.5 
+							? 2 * progress * progress 
+							: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+						for (let i = 0; i < influences.length; i++) {
+							const targetVal = getTargetValue(i, target);
+							influences[i] = start[i] + (targetVal - start[i]) * eased;
 						}
-					});
-				}
-			});
+
+						if (progress < 1 && (isAsync ? (isSpeaking || isAnimatingLetters) : true)) {
+							currentAnimation = requestAnimationFrame(anim);
+						} else {
+							resolve();
+						}
+					}
+					
+					anim();
+				});
+			}
+
+			function getTargetValue(index, expression) {
+				const param = allMorphParams.find(p => p.index === index);
+				if (!param) return 0;
+				return expression[param.name] || 0;
+			}
 
 		</script>
 	</body>
